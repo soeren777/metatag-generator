@@ -26,7 +26,7 @@ return [
 
     // ── Crawler ───────────────────────────────────────────────────────────────
     'crawler_timeout'    => 10,
-    'crawler_user_agent' => 'MetaTagGenerator/1.0 (+https://soerenmeier.de/webtools/metatag-optimizer/)',
+    'crawler_user_agent' => 'MetaTagGenerator/1.0 (+https://soerenmeier.de/webtools/metatag-generator/)',
     'max_content_length' => 50000,
 
     // ── Rate Limiting ─────────────────────────────────────────────────────────
