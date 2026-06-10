@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meta Tag Generator – soerenmeier.de</title>
+  <meta name="description" content="Crawl single or multiple URL or enter content manually – generates optimized title, description, keywords, Open Graph, JSON-LD for search engines and AI systems." />
+  <link rel="icon" type="image/png" href="/favicon-32x32.png" sizes="32x32" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/design-system.css" />
+  <link rel="stylesheet" href="/css/tools-styles.css" />
+  <link rel="stylesheet" href="/css/webtools.css" />
+  <style>
+    /* ── Tool-specific overrides ── */
+    .url-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .url-row input[type="url"] {
+      flex: 1 1 0;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .url-row input[type="url"]:focus { border-color: var(--accent); }
+    .url-row input[type="url"]::placeholder { color: var(--muted); }
+
+    .overrides-panel {
+      display: none;
+      margin-top: 24px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+    .overrides-panel.show { display: block; }
+    .overrides-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .field-grid {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 8px 12px;
+      align-items: start;
+      margin-bottom: 16px;
+    }
+    .field-grid label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 10px;
+    }
+    .field-grid input,
+    .field-grid textarea,
+    .field-grid select {
+      padding: 9px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+      resize: vertical;
+    }
+    .field-grid input:focus,
+    .field-grid textarea:focus,
+    .field-grid select:focus { border-color: var(--accent); }
+    .field-grid input::placeholder,
+    .field-grid textarea::placeholder { color: var(--muted); }
+    .char-counter {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-align: right;
+      margin-top: 2px;
+      color: var(--muted);
+    }
+    .char-counter.ok  { color: #4caf50; }
+    .char-counter.warn { color: #ff9800; }
+    .char-counter.bad  { color: #f44336; }
+    .generate-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-top: 4px;
+    }
+    .provider-tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .provider-tag.ai { color: var(--accent); }
+
+    /* Progress */
+    .progress-wrap {
+      display: none;
+      margin-top: 24px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-bar-track {
+      width: 100%;
+      height: 3px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 10px;
+      position: relative;
+    }
+    .progress-bar-track.indeterminate .progress-bar-fill { display: none; }
+    .progress-bar-track.indeterminate::after { content:''; position:absolute; top:0; left:-40%; width:40%; height:100%; background:var(--accent); border-radius:2px; animation:lauflicht 1.2s ease-in-out infinite; }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--gradient);
+      transition: width 0.4s;
+    }
+    .progress-label {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Results section */
+    .result-wrap {
+      display: none;
+      margin-top: 32px;
+    }
+    .result-wrap.show { display: block; }
+
+    /* Score row */
+    /* AI suggestions */
+    .ai-hints {
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      margin-bottom: 24px;
+    }
+    .ai-hints.show { display: block; }
+    .ai-hints-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .ai-hint-item {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+    }
+    .ai-hint-item:last-child { border: none; }
+    .ai-hint-item::before { content: "→"; color: var(--accent); flex-shrink: 0; }
+
+    /* Tabs */
+    .tab-nav {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    /* ── Crawl multiple URLs ── */
+    .mode-switcher{display:flex;gap:8px;margin-bottom:1.5rem}
+    #modeSingle, #modeMulti {
+      font-family:var(--font-mono) !important;font-size:12px !important;letter-spacing:0.06em !important;
+      padding:9px 20px !important;border-radius:var(--radius-md) !important;
+      cursor:pointer !important;transition:background 0.2s,color 0.2s,border-color 0.2s !important;
+      white-space:nowrap !important;box-shadow:none !important;transform:none !important;opacity:1 !important;
+    }
+    #modeSingle:not(.active), #modeMulti:not(.active) {
+      background:var(--surface2) !important;color:var(--muted) !important;border:1px solid var(--border) !important;
+    }
+    #modeSingle.active, #modeMulti.active {
+      background:var(--accent) !important;color:#fff !important;border:1px solid var(--accent) !important;
+    }
+    #modeSingle:hover, #modeMulti:hover { transform:none !important;box-shadow:none !important; }
+    .multi-section{display:none}.multi-section.show{display:block}
+    .multi-progress{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 20px;margin-bottom:1.5rem;display:none}
+    .multi-progress.show{display:block}
+    .multi-progress-bar{width:100%;height:3px;background:var(--surface);border-radius:2px;overflow:hidden;margin-bottom:8px;position:relative}
+    .multi-progress-fill{height:100%;background:var(--accent);width:0%;transition:width 0.3s}
+    .multi-progress-bar.indeterminate .multi-progress-fill{display:none}
+    .multi-progress-bar.indeterminate::after{content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;background:var(--accent);border-radius:2px;animation:lauflicht 1.2s ease-in-out infinite}
+    @keyframes lauflicht{0%{left:-40%}100%{left:140%}}
+    .multi-progress-text{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .multi-results{display:none}.multi-results.show{display:block}
+    .multi-summary{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem}
+    .multi-stat{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 16px;font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+    .multi-stat strong{color:var(--text);display:block;font-size:1.2em;margin-bottom:2px}
+    .multi-table-wrap{overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border)}
+    .multi-table{width:100%;border-collapse:collapse;font-size:12px}
+    .multi-table th{text-align:left;padding:9px 13px;background:var(--surface2);color:var(--muted);font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+    .multi-table td{padding:9px 13px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text);font-size:12px}
+    .multi-table tr:last-child td{border-bottom:none}
+    .multi-table .td-url{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .multi-table .td-title{max-width:200px}
+    .multi-table .td-desc{max-width:240px;color:var(--muted)}
+    .multi-table .td-kw{max-width:150px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .multi-table .td-ok{color:#4caf50;text-align:center;font-family:var(--font-mono)}
+    .multi-table .td-err{color:#f44336;text-align:center;font-family:var(--font-mono)}
+    .multi-table .ai-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-left:4px;vertical-align:middle}
+    #multiDetailModal.open{display:flex !important}
+    #exportCsvBtn{margin-top:12px;padding:9px 18px;background:#6a11cb !important;border:none !important;border-radius:var(--radius-sm) !important;font-family:var(--font-mono) !important;font-size:12px !important;color:#fff !important;cursor:pointer !important;box-shadow:none !important;transform:none !important;transition:background 0.2s !important;letter-spacing:0.04em}
+    #exportCsvBtn:hover{background:#2575fc !important;transform:none !important;box-shadow:none !important}
+    button.tab-btn {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      color: var(--muted) !important;
+      background: none !important;
+      border: none !important;
+      border-bottom: 2px solid transparent !important;
+      padding: 10px 16px !important;
+      margin-bottom: -1px;
+      cursor: pointer;
+      transition: color 0.2s;
+      box-shadow: none !important;
+      transform: none !important;
+      border-radius: 0 !important;
+    }
+    button.tab-btn:hover {
+      color: var(--text) !important;
+      background: none !important;
+      transform: none !important;
+      box-shadow: none !important;
+      border-bottom: 2px solid transparent !important;
+      border-image: var(--gradient) 1 !important;
+      border-radius: 0 !important;
+    }
+    #crawlBtn, #manualBtn {
+      font-family:var(--font-mono) !important;font-size:13px !important;letter-spacing:0.06em !important;
+      padding:11px 26px !important;border-radius:var(--radius-md) !important;
+      cursor:pointer !important;transition:background 0.2s, color 0.2s, border-color 0.2s !important;
+      white-space:nowrap !important;box-shadow:none !important;transform:none !important;
+      opacity:1 !important;
+    }
+    #crawlBtn:not(.mode-btn--active), #manualBtn:not(.mode-btn--active) {
+      background:var(--accent-alt) !important;color:rgba(255,255,255,0.45) !important;
+      border:1px solid var(--border) !important;
+    }
+    #crawlBtn.mode-btn--active, #manualBtn.mode-btn--active {
+      background:var(--accent) !important;color:#fff !important;
+      border:1px solid var(--accent) !important;
+    }
+    #crawlBtn:hover, #manualBtn:hover {
+      transform:none !important;box-shadow:none !important;
+    }
+    #crawlBtn:disabled, #manualBtn:disabled {
+      opacity:1 !important;cursor:wait !important;
+    }
+    button.tab-btn.active {
+      color: var(--text) !important;
+      background: none !important;
+      border-bottom: 2px solid transparent !important;
+      border-image: var(--gradient) 1 !important;
+      box-shadow: none !important;
+      transform: none !important;
+      border-radius: 0 !important;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Code output */
+    .out-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .out-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .out-copy {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 4px 12px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+      box-shadow: none;
+      transform: none;
+      letter-spacing: 0.04em;
+    }
+    .out-copy:hover { color: var(--text); border-color: var(--accent); background: var(--surface2); box-shadow: none; transform: none; }
+    .out-copy.copied { color: #4caf50; border-color: rgba(76,175,80,.4); }
+    .code-out {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.7;
+      white-space: pre;
+      overflow-x: auto;
+      color: var(--text);
+      margin-bottom: 20px;
+    }
+    .code-out .ht { color: #6a8abf; }
+    .code-out .ha { color: #4caf50; }
+    .code-out .hv { color: #ff9800; }
+    .char-hint {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+      margin-top: -14px;
+      margin-bottom: 20px;
+    }
+    .char-hint.ok  { color: #4caf50; }
+    .char-hint.warn { color: #ff9800; }
+    .char-hint.bad  { color: #f44336; }
+
+    /* Robots options */
+    .robots-opts { display: grid; gap: 8px; margin-bottom: 16px; }
+    .robots-opt {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .robots-opt:hover { border-color: var(--border-hover); }
+    .robots-opt.active { border-color: var(--accent); }
+    .robots-opt-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .robots-opt-val {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .llms-note {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+    .llms-note a { color: var(--accent); }
+
+    /* Error */
+    .tool-error {
+      background: var(--surface2);
+      border: 1px solid rgba(244,67,54,.3);
+      border-left: 3px solid #f44336;
+      border-radius: var(--radius-sm);
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #f44336;
+      margin-top: 20px;
+      display: none;
+    }
+    .tool-error.show { display: block; }
+
+    @media (max-width: 860px) {
+      .url-row { flex-direction: column; }
+      .field-grid { grid-template-columns: 1fr; }
+      .field-grid label { padding-top: 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <div data-include="/header.html"></div>
+
+  <main class="tool-page">
+    <div class="tool-page-inner">
+
+      <div class="tool-page-header">
+        <a href="/" class="tool-back">← Home</a>
+        <h1 class="tool-page-title">Meta Tag Generator <small style="font-size:0.6em; opacity:0.6;">v1.0</small></h1>
+        <p class="tool-page-desc">Crawl a single URL or enter content manually – title, description, OG, JSON-LD and keywords in seconds.<br>Or...<br>Crawl multiple URLs to generate optimised tags for all subpages of a domain at once.
+  <a href="https://soerenmeier.de/docs/metatag-generator/" target="_blank" style="color:var(--accent); text-decoration:none; white-space:nowrap;">How it works →</a>
+  &nbsp;&vert;&nbsp;
+  <a href="https://github.com/soeren777/metatag-generator" target="_blank" style="color:var(--accent); text-decoration:none; white-space:nowrap;">GitHub →</a></p>
+      </div>
+
+      <section class="tool-section" id="metaTagOptimizer">
+
+        <div class="mode-switcher">
+          <button class="mode-switch-btn" id="modeSingle" data-mode="single">Single URL</button>
+          <button class="mode-switch-btn" id="modeMulti" data-mode="multi">Multiple URLs</button>
+        </div>
+        <!-- Shared URL row – buttons switch based on mode -->
+        <div class="url-row">
+          <input type="url" id="urlInput" placeholder="https://example.com/page" autocomplete="off" />
+          <button id="crawlBtn" class="mode-btn mode-btn--active">Crawl URL</button>
+          <button id="manualBtn" class="mode-btn">Manual Input</button>
+          <button id="multiStartBtn" style="display:none">Start crawl</button>
+        </div>
+        <p style="font-family:var(--font-mono);font-size:11px;color:var(--muted);text-align:center" id="urlHint">
+          Enter a URL to crawl automatically – or fill in content manually
+        </p>
+        <div id="singleSection" class="show">
+
+        <!-- Error -->
+        <div class="tool-error" id="toolError"></div>
+
+        <!-- Overrides panel -->
+        <div class="overrides-panel" id="overridesPanel">
+          <div class="overrides-label">Override fields / enter manually</div>
+          <div class="field-grid">
+            <label>Title / H1</label>
+            <div>
+              <input type="text" id="ovTitle" placeholder="Main headline of the page" maxlength="120" />
+              <div class="char-counter" id="cTitle"></div>
+            </div>
+            <label>Keywords</label>
+            <input type="text" id="ovKeywords" placeholder="keyword1, keyword2, keyword3" />
+            <label>Description</label>
+            <div>
+              <textarea id="ovDesc" rows="3" placeholder="Brief description of the page content…" maxlength="300"></textarea>
+              <div class="char-counter" id="cDesc"></div>
+            </div>
+            <label>Page type</label>
+            <select id="ovType">
+              <option value="website">Website / Homepage</option>
+              <option value="article">Article / Blog</option>
+              <option value="product">Product</option>
+              <option value="organization">Organization / Business</option>
+            </select>
+          </div>
+          <div class="generate-row">
+            <button id="generateBtn">Generate tags</button>
+            <span class="provider-tag" id="providerTag"></span>
+          </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-label" id="progressLabel">Crawling…</div>
+        </div>
+
+        <!-- Results -->
+        <div class="result-wrap" id="resultWrap">
+
+          <!-- AI hints -->
+          <div class="ai-hints" id="aiHints">
+            <div class="ai-hints-label">AI suggestions</div>
+            <div id="hintsList"></div>
+          </div>
+
+          <!-- Tab nav -->
+          <div class="tab-nav">
+            <button class="tab-btn active" data-tab="basic">Title/Desc/Keywords</button>
+            <button class="tab-btn" data-tab="og">Open Graph</button>
+            <button class="tab-btn" data-tab="twitter">Twitter Card</button>
+            <button class="tab-btn" data-tab="jsonld">JSON-LD</button>
+            <button class="tab-btn" data-tab="robots">Robots</button>
+            
+          </div>
+
+          <!-- Tab: basic -->
+          <div class="tab-panel active" id="tab-basic">
+            <div class="out-head">
+              <span class="out-label">Title tag</span>
+              <button class="out-copy" data-target="outTitle">copy</button>
+            </div>
+            <div class="code-out" id="outTitle"></div>
+            <div class="char-hint" id="hintTitle"></div>
+            <div class="out-head">
+              <span class="out-label">Keywords</span>
+              <button class="out-copy" data-target="outKeywords">copy</button>
+            </div>
+            <div class="code-out" id="outKeywords"></div>
+            <div class="out-head">
+              <span class="out-label">Meta description</span>
+              <button class="out-copy" data-target="outDesc">copy</button>
+            </div>
+            <div class="code-out" id="outDesc"></div>
+            <div class="char-hint" id="hintDesc"></div>
+          </div>
+
+          <!-- Tab: og -->
+          <div class="tab-panel" id="tab-og">
+            <div class="out-head">
+              <span class="out-label">Open Graph tags</span>
+              <button class="out-copy" data-target="outOg">copy</button>
+            </div>
+            <div class="code-out" id="outOg"></div>
+          </div>
+
+          <!-- Tab: twitter -->
+          <div class="tab-panel" id="tab-twitter">
+            <div class="out-head">
+              <span class="out-label">Twitter Card tags</span>
+              <button class="out-copy" data-target="outTwitter">copy</button>
+            </div>
+            <div class="code-out" id="outTwitter"></div>
+          </div>
+
+          <!-- Tab: jsonld -->
+          <div class="tab-panel" id="tab-jsonld">
+            <div class="out-head">
+              <span class="out-label">JSON-LD (Schema.org)</span>
+              <button class="out-copy" data-target="outJsonld">copy</button>
+            </div>
+            <div class="code-out" id="outJsonld"></div>
+          </div>
+
+          <!-- Tab: robots -->
+          <div class="tab-panel" id="tab-robots">
+            <div class="out-label" style="margin-bottom:12px">Robots meta tag – choose variant</div>
+            <div class="robots-opts" id="robotsOpts"></div>
+            <div class="out-head" style="margin-top:4px">
+              <span class="out-label">Selected tag</span>
+              <button class="out-copy" data-target="outRobots">copy</button>
+            </div>
+            <div class="code-out" id="outRobots"></div>
+          </div>
+
+          <!-- Tab: llms -->
+          <div style="margin-top:16px;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:12px;color:var(--muted)">
+            Need an <strong style="color:var(--text)">llms.txt</strong>? <a href="/tools/llms-txt-generator/" style="color:var(--accent)">Use the llms.txt Generator →</a>
+          </div></div><!-- /result-wrap -->
+        </div><!-- /singleSection -->
+
+        <!-- ── Crawl multiple URLs Section ── -->
+        <div class="multi-section" id="multiSection">
+          <div class="multi-progress" id="multiProgress">
+            <div class="multi-progress-bar"><div class="multi-progress-fill" id="multiProgressFill"></div></div>
+            <div class="multi-progress-text" id="multiProgressText">Collecting URLs…</div>
+          </div>
+
+          <div class="multi-results" id="multiResults">
+            <div class="multi-summary" id="multiSummary"></div>
+            <div class="multi-table-wrap">
+              <table class="multi-table">
+                <thead><tr><th>URL</th><th>Title</th><th>Description</th><th>Keywords</th><th>Status</th></tr></thead>
+                <tbody id="multiTableBody"></tbody>
+              </table>
+            </div>
+            <button id="exportCsvBtn">export csv</button>
+          </div>
+        </div><!-- /multiSection -->
+
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Multi detail modal -->
+  <div id="multiDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px">
+    <div style="background:var(--bg2, #1a1a2e);border:1px solid var(--border);border-radius:var(--radius-md);padding:24px;max-width:520px;width:100%;max-height:80vh;overflow-y:auto">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--muted);word-break:break-all" id="multiDetailUrl"></div>
+        <button id="multiDetailClose" style="flex-shrink:0;background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;padding:0;box-shadow:none;transform:none">&times;</button>
+      </div>
+      <div id="multiDetailFields"></div>
+    </div>
+  </div>
+
+  <div data-include="/footer.html"></div>
+
+  <script src="/js/include-html.js"></script>
+  <script src="/js/header-init.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ── Mode switcher ─────────────────────────────────────────────────────────
+  document.querySelectorAll('.mode-switch-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.mode-switch-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const isSingle = btn.dataset.mode === 'single';
+      document.getElementById('singleSection').classList.toggle('show', isSingle);
+      document.getElementById('multiSection').classList.toggle('show', !isSingle);
+      document.getElementById('crawlBtn').style.display   = isSingle ? '' : 'none';
+      document.getElementById('manualBtn').style.display  = isSingle ? '' : 'none';
+      document.getElementById('multiStartBtn').style.display = isSingle ? 'none' : '';
+      document.getElementById('urlInput').placeholder = isSingle
+        ? 'https://example.com/page' : 'https://example.com';
+      document.getElementById('urlHint').innerHTML = isSingle
+        ? 'Enter a URL to crawl automatically – or fill in content manually'
+        : 'Enter a domain – crawls sitemap and generates tags for all subpages (max. 250)<br>Depending on page count this may take several minutes.';
+
+      // Reset single URL results when switching to crawl-multiple-urls
+      if (!isSingle) {
+        document.getElementById('resultWrap').className = 'result-wrap';
+        document.getElementById('overridesPanel').classList.remove('show');
+        document.getElementById('progressWrap').className = 'progress-wrap';
+        document.getElementById('toolError').className = 'tool-error';
+        document.getElementById('urlInput').value = '';
+        pageData = null;
+      }
+    };
+  });
+  document.getElementById('modeSingle').classList.add('active');
+
+  // ── Crawl multiple URLs ────────────────────────────────────────────────────────────
+  let multiRows = [];
+  let multiPollTimer = null;
+  let multiLastRowCount = 0;
+
+  document.getElementById('multiStartBtn').onclick = async () => {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) return;
+    multiRows = [];
+    multiLastRowCount = 0;
+    document.getElementById('multiTableBody').innerHTML = '';
+    document.getElementById('multiSummary').innerHTML = '';
+    document.getElementById('multiResults').classList.remove('show');
+    document.getElementById('multiProgress').classList.add('show');
+    document.getElementById('multiProgressFill').style.width = '0%';
+    document.getElementById('multiProgressFill').closest('.multi-progress-bar').classList.add('indeterminate');
+    document.getElementById('multiProgressText').textContent = 'Starting…';
+    document.getElementById('multiStartBtn').disabled = true;
+    if (multiPollTimer) clearInterval(multiPollTimer);
+
+    // Start job
+    let jobId;
+    try {
+      const r = await fetch('api.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'start_multicrawl', url})
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
+      jobId = d.data.job_id;
+    } catch(e) {
+      document.getElementById('multiProgressText').textContent = '❌ ' + e.message;
+      document.getElementById('multiStartBtn').disabled = false;
+      return;
+    }
+
+    // Poll job status every 2 seconds
+    multiPollTimer = setInterval(async () => {
+      try {
+        const r = await fetch('job-status.php?id=' + jobId);
+        if (!r.ok) return;
+        const d = await r.json();
+
+        if (d.error) {
+          clearInterval(multiPollTimer);
+          document.getElementById('multiProgressText').textContent = '❌ ' + d.error;
+          document.getElementById('multiStartBtn').disabled = false;
+          return;
+        }
+
+        // Update progress
+        document.getElementById('multiProgressText').textContent = d.message || '…';
+        if (d.total > 0) {
+          document.getElementById('multiProgressFill').closest('.multi-progress-bar').classList.remove('indeterminate');
+          const pct = Math.round(d.done / d.total * 100);
+          document.getElementById('multiProgressFill').style.width = pct + '%';
+        }
+
+        // Append new rows
+        const rows = d.rows || [];
+        if (rows.length > multiLastRowCount) {
+          for (let i = multiLastRowCount; i < rows.length; i++) {
+            multiRows.push(rows[i]);
+            appendMultiRow(rows[i]);
+            document.getElementById('multiResults').classList.add('show');
+          }
+          multiLastRowCount = rows.length;
+        }
+
+        // Check if done
+        if (d.status === 'done') {
+          clearInterval(multiPollTimer);
+          document.getElementById('multiProgress').classList.remove('show');
+          const success = (d.total || 0) - (d.errors || 0);
+          document.getElementById('multiSummary').innerHTML =
+            '<div class="multi-stat"><strong>' + (d.total||0) + '</strong>total</div>' +
+            '<div class="multi-stat"><strong style="color:#4caf50">' + success + '</strong>ok</div>' +
+            (d.errors ? '<div class="multi-stat"><strong style="color:#f44336">' + d.errors + '</strong>errors</div>' : '');
+          document.getElementById('multiStartBtn').disabled = false;
+        }
+
+        if (d.status === 'error') {
+          clearInterval(multiPollTimer);
+          document.getElementById('multiProgressText').textContent = '❌ ' + (d.message || 'Error');
+          document.getElementById('multiStartBtn').disabled = false;
+        }
+
+      } catch(e) {
+        // Network error during poll – keep trying
+        console.warn('Poll error:', e.message);
+      }
+    }, 2000);
+  };
+
+  function appendMultiRow(row) {
+    const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const tr = document.createElement('tr');
+    if (row.status === 'error') {
+      const code = row.errorCode || 'err';
+      tr.innerHTML = `<td class="td-url" title="${esc(row.url)}"><a href="${esc(row.url)}" target="_blank" style="color:var(--accent);text-decoration:none">${esc(row.url)}</a></td><td colspan="3" style="color:var(--muted);font-size:11px;font-family:var(--font-mono)">–</td><td class="td-err" title="${esc(row.error||'')}" style="cursor:help">⚠ ${esc(code)}</td>`;
+    } else {
+      tr.innerHTML = `<td class="td-url" title="${esc(row.url)}"><a href="${esc(row.url)}" target="_blank" style="color:var(--accent);text-decoration:none">${esc(row.url)}</a></td><td class="td-title">${esc(row.title)}${row.ai_powered?'<span class="ai-dot"></span>':''}</td><td class="td-desc">${esc(row.description)}</td><td class="td-kw" title="${esc(row.keywords)}">${esc(row.keywords)}</td><td class="td-ok">✓</td>`;
+      tr.style.cursor = 'pointer';
+      tr.title = 'Click to copy';
+      tr.onclick = () => openMultiDetail(row);
+    }
+    document.getElementById('multiTableBody').appendChild(tr);
+  }
+
+  function openMultiDetail(row) {
+    const fields = [
+      { label: 'Title',       value: row.title       || '' },
+      { label: 'Description', value: row.description || '' },
+      { label: 'Keywords',    value: row.keywords    || '' },
+    ];
+    document.getElementById('multiDetailUrl').textContent = row.url;
+    document.getElementById('multiDetailFields').innerHTML = fields.map(f => `
+      <div style="margin-bottom:14px">
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">${f.label}</div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:13px;color:var(--text);line-height:1.5;word-break:break-word">${f.value || '<span style="color:var(--muted);font-style:italic">–</span>'}</div>
+          <button class="detail-copy-btn" data-value="${f.value.replace(/"/g,'&quot;')}" style="flex-shrink:0;padding:8px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:11px;color:var(--muted);cursor:pointer;box-shadow:none;transform:none;transition:color .2s,border-color .2s">copy</button>
+        </div>
+      </div>`).join('');
+    document.getElementById('multiDetailModal').classList.add('open');
+  }
+
+  document.getElementById('multiDetailClose').onclick = () =>
+    document.getElementById('multiDetailModal').classList.remove('open');
+  document.getElementById('multiDetailModal').onclick = e => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+  };
+  document.getElementById('multiDetailFields').addEventListener('click', e => {
+    const btn = e.target.closest('.detail-copy-btn');
+    if (!btn) return;
+    const text = btn.dataset.value;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied ✓';
+      btn.style.color = '#4caf50';
+      setTimeout(() => { btn.textContent = 'copy'; btn.style.color = ''; }, 2000);
+    }).catch(() => {
+      // Fallback for non-HTTPS
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      btn.textContent = 'copied ✓';
+      btn.style.color = '#4caf50';
+      setTimeout(() => { btn.textContent = 'copy'; btn.style.color = ''; }, 2000);
+    });
+  });
+
+  document.getElementById('exportCsvBtn').onclick = () => {
+    const header = ['URL','Title','Description','Keywords','Status','Error'];
+    const rows = multiRows.map(r => [r.url,r.title||'',r.description||'',r.keywords||'',r.status,r.error||'']
+      .map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'metatags-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+  };
+
+}); // DOMContentLoaded
+
+  // Global – called from modal onclick
+  function copyText(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'copied ✓';
+      btn.style.color = '#4caf50';
+      setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+    });
+  }
+  </script>
+  <script src="/js/scrollbtn.js"></script>
+  <script src="/js/overlay-standalone.js"></script>
+  <script>
+  const API = 'api.php';
+  let pageData = null;
+
+  function esc(s){ const d=document.createElement('div');d.textContent=String(s);return d.innerHTML; }
+  function mkMeta(attrs){
+    return `<span class="ht">&lt;meta</span>${Object.entries(attrs).filter(([,v])=>v).map(([k,v])=>`<span class="ha"> ${esc(k)}</span>=<span class="hv">"${esc(v)}"</span>`).join('')}<span class="ht"> /&gt;</span>`;
+  }
+  function mkTag(n,c){
+    return `<span class="ht">&lt;${n}&gt;</span>${esc(c)}<span class="ht">&lt;/${n}&gt;</span>`;
+  }
+  function charState(len,min,max){
+    return len>=min&&len<=max?'ok':len<min*0.7?'bad':'warn';
+  }
+  function charLabel(len,min,max){
+    const s=charState(len,min,max);
+    return `<span class="${s}">${len} / ${min}–${max} chars</span>`;
+  }
+
+  function setProgress(show,text,pct){
+    const w=document.getElementById('progressWrap');
+    w.className='progress-wrap'+(show?' show':'');
+    if(text) document.getElementById('progressLabel').textContent=text;
+    if(pct!=null) document.getElementById('progressFill').style.width=pct+'%';
+  }
+  function setError(msg){
+    const el=document.getElementById('toolError');
+    el.textContent=msg||'';
+    el.className='tool-error'+(msg?' show':'');
+  }
+
+  document.getElementById('crawlBtn').onclick=async()=>{
+    const url=document.getElementById('urlInput').value.trim();
+    if(!url){setError('Please enter a URL.');return;}
+    setError('');
+    document.getElementById('resultWrap').className='result-wrap';
+    setProgress(true,'Crawling page…',20);
+    document.getElementById('crawlBtn').classList.add('mode-btn--active');
+    document.getElementById('manualBtn').classList.remove('mode-btn--active');
+    document.getElementById('crawlBtn').disabled=true;
+    try{
+      const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'crawl',url})});
+      const d=await r.json();
+      if(!d.ok) throw new Error(d.error);
+      pageData=d.data.page;
+      fillOverrides(pageData);
+      document.getElementById('overridesPanel').classList.add('show');
+      const pt=document.getElementById('providerTag');
+      pt.textContent=d.data.ai_ready?'✦ '+d.data.provider:'rule-based';
+      pt.className='provider-tag'+(d.data.ai_ready?' ai':'');
+
+    }catch(e){
+      setError(e.message);
+    }finally{
+      setProgress(false);
+      document.getElementById('crawlBtn').disabled=false;
+    }
+  };
+
+  document.getElementById('manualBtn').onclick=()=>{
+    document.getElementById('manualBtn').classList.add('mode-btn--active');
+    document.getElementById('crawlBtn').classList.remove('mode-btn--active');
+    const url=document.getElementById('urlInput').value.trim()||'https://example.com';
+    const domain=(url.match(/https?:\/\/([^/]+)/)||[])[1]||'example.com';
+    pageData={url,existing:{},h1:'',h2s:[],paragraphs:[],jsonld:[],page_type:'website',body_text:'',domain};
+    document.getElementById('overridesPanel').classList.add('show');
+    document.getElementById('resultWrap').className='result-wrap';
+  };
+
+  document.getElementById('generateBtn').onclick=async()=>{
+    setError('');
+    document.getElementById('generateBtn').disabled=true;
+    setProgress(true,'Generating…',50);
+    document.getElementById('progressFill').closest('.progress-bar-track').classList.add('indeterminate');
+    try{ await doGenerate(); }
+    catch(e){ setError(e.message); }
+    finally{ document.getElementById('progressFill').closest('.progress-bar-track').classList.remove('indeterminate'); setProgress(false); document.getElementById('generateBtn').disabled=false; }
+  };
+
+  async function doGenerate(){
+    if(!pageData) return;
+    const overrides={
+      title:document.getElementById('ovTitle').value.trim(),
+      keywords:document.getElementById('ovKeywords').value.trim(),
+      description:document.getElementById('ovDesc').value.trim(),
+    };
+    pageData.page_type=document.getElementById('ovType').value||'website';
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generate',page:pageData,overrides})});
+    const d=await r.json();
+    if(!d.ok) throw new Error(d.error);
+    // Job queue response
+    if(d.data.polling && d.data.job_id){
+      const jobId=d.data.job_id;
+      const statusUrl=API.replace('api.php','job-status.php');
+      await new Promise((resolve,reject)=>{
+        const t=setInterval(async()=>{
+          try{
+            const rs=await fetch(statusUrl+'?id='+jobId);
+            const ds=await rs.json();
+            if(ds.status==='done'){clearInterval(t);renderResults(ds.result);resolve();}
+            if(ds.status==='error'){clearInterval(t);reject(new Error(ds.message||'Generation failed'));}
+          }catch(e){clearInterval(t);reject(e);}
+        },2000);
+      });
+    } else {
+      renderResults(d.data);
+    }
+  }
+
+  function fillOverrides(p){
+    document.getElementById('ovTitle').value=p.h1||p.existing?.title||'';
+    document.getElementById('ovKeywords').value=p.existing?.keywords||'';
+    document.getElementById('ovDesc').value=p.existing?.description||'';
+    document.getElementById('ovType').value=p.page_type||'website';
+    updateCounters();
+  }
+
+  function updateCounters(){
+    const t=document.getElementById('ovTitle').value.length;
+    const d=document.getElementById('ovDesc').value.length;
+    const tc=document.getElementById('cTitle');
+    const dc=document.getElementById('cDesc');
+    tc.textContent=`${t} / 30–60`;tc.className='char-counter '+charState(t,30,60);
+    dc.textContent=`${d} / 120–160`;dc.className='char-counter '+charState(d,120,160);
+  }
+  document.getElementById('ovTitle').oninput=updateCounters;
+  document.getElementById('ovDesc').oninput=updateCounters;
+
+  function renderResults(d){
+    document.getElementById('resultWrap').className='result-wrap show';
+    // AI hints
+    if(d.ai_suggestions?.length){
+      document.getElementById('aiHints').classList.add('show');
+      document.getElementById('hintsList').innerHTML=d.ai_suggestions.map(s=>`<div class="ai-hint-item">${esc(s)}</div>`).join('');
+    }
+
+    // Title
+    document.getElementById('outTitle').innerHTML=mkTag('title',d.title);
+    const kw = d.keywords || document.getElementById('ovKeywords').value.trim() || '';
+    document.getElementById('outKeywords').innerHTML=mkMeta({name:'keywords',content:kw});
+    const tl=d.title.length;
+    const th=document.getElementById('hintTitle');
+    th.textContent=`${tl} / 30–60 chars`;th.className='char-hint '+charState(tl,30,60);
+
+    // Desc
+    document.getElementById('outDesc').innerHTML=mkMeta({name:'description',content:d.description});
+    const dl=d.description.length;
+    const dh=document.getElementById('hintDesc');
+    dh.textContent=`${dl} / 120–160 chars`;dh.className='char-hint '+charState(dl,120,160);
+
+    // OG
+    document.getElementById('outOg').innerHTML=Object.entries(d.og).filter(([,v])=>v).map(([k,v])=>mkMeta({property:k,content:v})).join('\n');
+
+    // Twitter
+    document.getElementById('outTwitter').innerHTML=Object.entries(d.twitter).map(([k,v])=>mkMeta({name:k,content:v})).join('\n');
+
+    // JSON-LD
+    document.getElementById('outJsonld').innerHTML=`<span class="ht">&lt;script</span><span class="ha"> type</span>=<span class="hv">"application/ld+json"</span><span class="ht">&gt;</span>\n${esc(JSON.stringify(d.jsonld,null,2))}\n<span class="ht">&lt;/script&gt;</span>`;
+
+    // Robots
+    const opts=[['Standard SEO','standard'],['AI crawlers open','ai_open'],['Block AI crawlers','ai_block']];
+    document.getElementById('robotsOpts').innerHTML=opts.map(([label,key],i)=>`
+      <div class="robots-opt${i===0?' active':''}" onclick="selectRobot(this,'${esc(d.robots[key])}')">
+        <div class="robots-opt-name">${label}</div>
+        <div class="robots-opt-val">${esc(d.robots[key])}</div>
+      </div>`).join('');
+    document.getElementById('outRobots').innerHTML=mkMeta({name:'robots',content:d.robots.standard});
+
+    // llms.txt
+
+
+    document.getElementById('resultWrap').scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function selectRobot(el,val){
+    document.querySelectorAll('.robots-opt').forEach(e=>e.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('outRobots').innerHTML=mkMeta({name:'robots',content:val});
+  }
+
+  // Tabs
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.onclick=()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    };
+  });
+
+  // Copy buttons
+  document.querySelectorAll('.out-copy').forEach(btn=>{
+    btn.onclick=()=>{
+      const el=document.getElementById(btn.dataset.target);
+      navigator.clipboard.writeText(el.innerText).then(()=>{
+        const orig=btn.textContent;
+        btn.textContent='copied ✓';btn.classList.add('copied');
+        setTimeout(()=>{btn.textContent=orig;btn.classList.remove('copied');},2000);
+      });
+    };
+  });
+  </script>
+
+</body>
+</html>
