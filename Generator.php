@@ -83,7 +83,59 @@ class MetaTagGenerator
     private function trimToLength(string $text, int $max): string
     {
         if (mb_strlen($text) <= $max) return $text;
-        return mb_substr($text, 0, $max - 1) . '…';
+
+        $cut = mb_substr($text, 0, $max);
+
+        // 1. Try to cut at the last sentence end (. ! ?) – cleanest result
+        $best = null;
+        foreach (['.', '!', '?'] as $punct) {
+            $pos = mb_strrpos($cut, $punct);
+            if ($pos !== false && $pos > $max * 0.5) {
+                $best = max($best ?? 0, $pos + 1);
+            }
+        }
+        if ($best !== null) {
+            return trim(mb_substr($text, 0, $best));
+        }
+
+        // 2. Try to cut at the last natural delimiter (| – - : ,)
+        foreach (['|', '–', '—', ':', ' - ', ','] as $delim) {
+            $pos = mb_strrpos($cut, $delim);
+            if ($pos !== false && $pos > $max * 0.4) {
+                return rtrim(mb_substr($text, 0, $pos));
+            }
+        }
+
+        // 3. Fallback: cut at last word boundary, drop dangling stopwords, add …
+        $limit = $max - 1;
+        $cut   = mb_substr($text, 0, $limit);
+
+        $lastSpace = mb_strrpos($cut, ' ');
+        if ($lastSpace !== false && $lastSpace > $limit * 0.6) {
+            $cut = mb_substr($cut, 0, $lastSpace);
+        }
+        $cut = rtrim($cut, " .,;:-–—");
+
+        $stopwords = [
+            'seit','für','mit','und','oder','von','zu','zur','zum','bei','der','die',
+            'das','den','dem','des','ein','eine','einer','einen','im','am','an','auf',
+            'als','wie','aus','nach','vor','über','unter','durch','ohne','gegen','um',
+            'since','for','with','and','or','of','to','the','a','an','at','on','in',
+            'as','by','from','into','about','than','that','this',
+        ];
+
+        while (true) {
+            $lastSpace = mb_strrpos($cut, ' ');
+            if ($lastSpace === false) break;
+            $lastWord = mb_strtolower(mb_substr($cut, $lastSpace + 1));
+            if (in_array($lastWord, $stopwords, true)) {
+                $cut = rtrim(mb_substr($cut, 0, $lastSpace), " .,;:-–—");
+                continue;
+            }
+            break;
+        }
+
+        return $cut . '…';
     }
 
     private function buildOg(string $title, string $desc, string $url, string $type, array $page): array
@@ -180,6 +232,10 @@ class MetaTagGenerator
         $desc  = $data['description'] ?? '';
         $kw    = $data['keywords'] ?? '';
 
+        // Sicherheitsnetz: AI hält Längenvorgaben nicht immer ein
+        $title = $this->trimToLength($title, 60);
+        $desc  = $this->trimToLength($desc, 160);
+
         return [
             'provider'       => $this->provider->getName(),
             'ai_powered'     => true,
@@ -223,12 +279,19 @@ $content
 
 Generate meta tags that accurately reflect the page content. The title and description must be derived from the actual content, not just reworded from existing tags.
 
-Rules:
-- title: 50-60 characters, keyword-rich, reflects the page's main topic
-- description: 150-160 characters, summarizes the page content, includes a call to action
+CRITICAL LENGTH REQUIREMENTS — these are HARD LIMITS, not guidelines:
+- title: MUST be between 50 and 60 characters TOTAL (including spaces and punctuation). Never exceed 60 characters. Never go below 50 characters. Count the characters before responding. If your draft is too long, shorten it by removing less important words — do not just truncate mid-word.
+- description: MUST be between 150 and 160 characters TOTAL (including spaces and punctuation). Never exceed 160 characters. Never go below 150 characters. Count the characters before responding. If your draft is too long, rewrite it more concisely — do not just truncate mid-sentence.
+
+Example of correct length (57 chars): "Handmade Leather Wallets – Free Shipping | LeatherCraft"
+Example of correct length (158 chars): "Discover handcrafted leather wallets made from premium full-grain leather. Free shipping on all orders over €50. Shop now and save 10%!"
+
+Other rules:
 - keywords: 8-12 comma-separated keywords derived from the actual page content
 - llms_txt: a complete llms.txt section for this page in markdown
 - suggestions: exactly 3 specific SEO improvement tips based on what is missing or weak on this page, in the same language as the page content
+
+Before responding, verify: does "title" have between 50 and 60 characters? Does "description" have between 150 and 160 characters? If not, revise until both constraints are met.
 
 You MUST respond with ONLY a raw JSON object. No markdown, no code fences, no text before or after:
 
