@@ -55,6 +55,25 @@ try {
         json_ok(['job_id' => $jobId]);
     }
 
+    if ($action === 'retry_multicrawl') {
+        $urls = $body['urls'] ?? [];
+        if (empty($urls) || !is_array($urls)) json_error('Keine URLs angegeben');
+
+        $jobId  = bin2hex(random_bytes(8));
+        $jobDir = '/tmp/metatag-jobs';
+        if (!is_dir($jobDir)) mkdir($jobDir, 0700, true);
+
+        file_put_contents("$jobDir/$jobId.json", json_encode([
+            'status' => 'queued', 'message' => 'Starting retry…', 'updated' => time(),
+        ]), LOCK_EX);
+
+        $workerPath = escapeshellarg(__DIR__ . '/multicrawl-worker.php');
+        $urlsArg    = escapeshellarg(json_encode($urls));
+        exec("nohup php $workerPath " . escapeshellarg($jobId) . " $urlsArg > /dev/null 2>&1 &");
+
+        json_ok(['job_id' => $jobId]);
+    }
+
     if ($action === 'generate') {
         $page      = $body['page']      ?? null;
         $overrides = $body['overrides'] ?? [];

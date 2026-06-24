@@ -6,8 +6,11 @@ A self-hosted PHP tool that crawls websites and generates SEO-optimised meta tag
 
 - **Single URL mode** – crawl one page and generate meta tags instantly
 - **Multiple URLs mode** – automatically discover all URLs via sitemap.xml, then generate meta tags for every page. Uses a background job queue with live progress polling – no HTTP timeouts, works on any standard PHP setup
+- **Retry failed pages** – after a crawl run, retry only the failed URLs with one click. Reuses the same job queue architecture – successful results are preserved in the table
+- **XLSX export** – export all results to Excel-compatible .xlsx (via SheetJS). Works on Windows Excel, Mac Excel, LibreOffice and Google Sheets without encoding issues
 - **7 AI providers** – Claude (Anthropic), GPT-4o (OpenAI), Gemini (Google), Perplexity, Grok (xAI), any OpenAI-compatible endpoint, or free rule-based generation
 - **Structured output** – Title, Meta Description, Keywords, Open Graph, Twitter Card, JSON-LD, Robots directive
+- **Length enforcement** – AI-generated titles (50–60 chars) and descriptions (150–160 chars) are enforced via a strict prompt and a three-step post-processing safety net
 - **Retry logic** – automatic retry on 503/429 responses (3 attempts, 2s/5s/10s delays)
 - **Rate limiting** – file-based per-IP rate limiting
 - **No dependencies** – pure PHP, no Composer packages required for core functionality
@@ -70,11 +73,11 @@ METATAG_AI_URL=
 
 ```
 metatag-generator/
-├── index.html                  # Frontend (Single URL + Crawl multiple URLs)
-├── api.php                     # API endpoint (single URL + start crawl job)
+├── index.html                  # Frontend (Single URL + Crawl multiple URLs + Retry + XLSX export)
+├── api.php                     # API endpoint (crawl, generate, start_multicrawl, retry_multicrawl)
 ├── generate-worker.php         # Background CLI worker for Single URL generation
 ├── multicrawl.php              # Legacy SSE endpoint (superseded by job queue)
-├── multicrawl-worker.php       # Background CLI worker for crawl multiple URLs
+├── multicrawl-worker.php       # Background CLI worker for crawl multiple URLs (+ direct URL list support)
 ├── job-status.php              # Job progress endpoint (polled every 2s by frontend)
 ├── Crawler.php                 # HTTP crawler + HTML parser
 ├── Generator.php               # Meta tag generator (AI + rule-based, with post-processing)
@@ -127,7 +130,8 @@ As a safety net, every generated title and description runs through `trimToLengt
 4. Frontend polls `job-status.php?id=JOB_ID` every 2 seconds for live progress
 5. On completion: results table with URL, title, description, keywords, status
 6. Click any row to open a detail modal with copy buttons per field
-7. CSV export available on completion
+7. **Retry failed pages** – if any URLs failed, a "↺ retry failed" button appears. Clicking it starts a new background job with only the failed URLs. The worker accepts a direct URL list (skipping sitemap discovery), processes them, and merges results back into the existing table. Successful rows are never touched.
+8. **XLSX export** – export results as a properly formatted .xlsx file via SheetJS (loaded from CDN). No CSV encoding issues across platforms.
 
 ## Architecture: why a job queue instead of SSE
 
@@ -189,8 +193,8 @@ The tool uses simple file-based rate limiting per IP address. Files are stored i
 
 ## Roadmap
 
-- [ ] Batch size configuration
-- [ ] Docker container
+- [ ] Docker container (planned for public release)
+- [ ] Batch size UI configuration
 
 ## License
 

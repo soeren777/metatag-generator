@@ -227,6 +227,8 @@
     #multiDetailModal.open{display:flex !important}
     #exportCsvBtn{margin-top:12px;padding:9px 18px;background:#6a11cb !important;border:none !important;border-radius:var(--radius-sm) !important;font-family:var(--font-mono) !important;font-size:12px !important;color:#fff !important;cursor:pointer !important;box-shadow:none !important;transform:none !important;transition:background 0.2s !important;letter-spacing:0.04em}
     #exportCsvBtn:hover{background:#2575fc !important;transform:none !important;box-shadow:none !important}
+    #retryFailedBtn{margin-top:12px;margin-left:8px;padding:9px 18px;background:rgba(244,67,54,.15) !important;border:1px solid rgba(244,67,54,.4) !important;border-radius:var(--radius-sm) !important;font-family:var(--font-mono) !important;font-size:12px !important;color:#f44336 !important;cursor:pointer !important;box-shadow:none !important;transform:none !important;transition:all 0.2s !important;letter-spacing:0.04em;display:none}
+    #retryFailedBtn:hover{background:rgba(244,67,54,.25) !important;transform:none !important}
     button.tab-btn {
       font-family: var(--font-mono);
       font-size: 12px;
@@ -396,6 +398,7 @@
       .field-grid label { padding-top: 0; }
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -552,7 +555,7 @@
 
           <!-- Tab: llms -->
           <div style="margin-top:16px;padding:12px 16px;background:var(--surface2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:var(--radius-sm);font-family:var(--font-mono);font-size:12px;color:var(--muted)">
-            Need an <strong style="color:var(--text)">llms.txt</strong>? <a href="/tools/llms-txt-generator/" style="color:var(--accent)">Use the llms.txt Generator →</a>
+            Need an <strong style="color:var(--text)">llms.txt</strong>? <a href="https://llmshub.de/en/tools/llms-txt-generator/" style="color:var(--accent)" target="_blank">Use the llms.txt Generator →</a>
           </div></div><!-- /result-wrap -->
         </div><!-- /singleSection -->
 
@@ -571,7 +574,8 @@
                 <tbody id="multiTableBody"></tbody>
               </table>
             </div>
-            <button id="exportCsvBtn">export csv</button>
+            <button id="exportCsvBtn">export xlsx</button>
+              <button id="retryFailedBtn">↺ retry failed</button>
           </div>
         </div><!-- /multiSection -->
 
@@ -708,6 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
             '<div class="multi-stat"><strong style="color:#4caf50">' + success + '</strong>ok</div>' +
             (d.errors ? '<div class="multi-stat"><strong style="color:#f44336">' + d.errors + '</strong>errors</div>' : '');
           document.getElementById('multiStartBtn').disabled = false;
+          document.getElementById('retryFailedBtn').style.display = d.errors ? 'inline-block' : 'none';
         }
 
         if (d.status === 'error') {
@@ -787,14 +792,110 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('exportCsvBtn').onclick = () => {
     const header = ['URL','Title','Description','Keywords','Status','Error'];
-    const rows = multiRows.map(r => [r.url,r.title||'',r.description||'',r.keywords||'',r.status,r.error||'']
-      .map(v => '"' + String(v).replace(/"/g,'""') + '"').join(','));
-    const csv = [header.join(','), ...rows].join('\n');
-    const blob = new Blob(['\uFEFF' + csv], {type:'text/csv;charset=utf-8'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'metatags-' + new Date().toISOString().slice(0,10) + '.csv';
-    a.click();
+    const rows = multiRows.map(r => [
+      r.url, r.title||'', r.description||'', r.keywords||'', r.status, r.error||''
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    // Set column widths
+    ws['!cols'] = [
+      {wch:40},{wch:60},{wch:80},{wch:40},{wch:10},{wch:40}
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Meta Tags');
+    XLSX.writeFile(wb, 'metatags-' + new Date().toISOString().slice(0,10) + '.xlsx');
+  };
+
+
+  document.getElementById('retryFailedBtn').onclick = async () => {
+    const failedUrls = multiRows.filter(r => r.status === 'error').map(r => r.url);
+    if (!failedUrls.length) return;
+
+    const retryBtn = document.getElementById('retryFailedBtn');
+    retryBtn.disabled = true;
+    retryBtn.textContent = '↺ retrying…';
+
+    // Start retry job via same worker with URL list
+    let jobId;
+    try {
+      const r = await fetch(API, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'retry_multicrawl', urls: failedUrls})
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error);
+      jobId = d.data.job_id;
+    } catch(e) {
+      retryBtn.disabled = false;
+      retryBtn.textContent = '↺ retry failed';
+      alert('Retry failed: ' + e.message);
+      return;
+    }
+
+    document.getElementById('multiProgress').classList.add('show');
+    document.getElementById('multiProgressFill').style.width = '0%';
+    document.getElementById('multiProgressFill').closest('.multi-progress-bar').classList.add('indeterminate');
+    document.getElementById('multiProgressText').textContent = 'Retrying ' + failedUrls.length + ' URL(s)…';
+
+    // Poll – same as main multicrawl
+    const retryPoll = setInterval(async () => {
+      try {
+        const r = await fetch(API.replace('api.php', 'job-status.php') + '?id=' + jobId);
+        if (!r.ok) return;
+        const d = await r.json();
+
+        document.getElementById('multiProgressText').textContent = d.message || '…';
+        if (d.total > 0) {
+          document.getElementById('multiProgressFill').closest('.multi-progress-bar').classList.remove('indeterminate');
+          document.getElementById('multiProgressFill').style.width = Math.round(d.done / d.total * 100) + '%';
+        }
+
+        // Merge new rows into existing multiRows and update table
+        const newRows = d.rows || [];
+        for (const newRow of newRows) {
+          const idx = multiRows.findIndex(r => r.url === newRow.url);
+          if (idx !== -1) {
+            multiRows[idx] = newRow;
+            // Update table row
+            const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            const trs = document.getElementById('multiTableBody').querySelectorAll('tr');
+            for (const tr of trs) {
+              const a = tr.querySelector('a');
+              if (a && decodeURIComponent(a.href) === decodeURIComponent(newRow.url)) {
+                if (newRow.status === 'ok') {
+                  tr.innerHTML = `<td class="td-url" title="${esc(newRow.url)}"><a href="${esc(newRow.url)}" target="_blank" style="color:var(--accent);text-decoration:none">${esc(newRow.url)}</a></td><td class="td-title">${esc(newRow.title)}${newRow.ai_powered?'<span class="ai-dot"></span>':''}</td><td class="td-desc">${esc(newRow.description)}</td><td class="td-kw" title="${esc(newRow.keywords)}">${esc(newRow.keywords)}</td><td class="td-ok">✓</td>`;
+                  tr.style.cursor = 'pointer';
+                  tr.onclick = () => openMultiDetail(newRow);
+                }
+                break;
+              }
+            }
+          }
+        }
+
+        if (d.status === 'done') {
+          clearInterval(retryPoll);
+          document.getElementById('multiProgress').classList.remove('show');
+          document.getElementById('multiProgressFill').closest('.multi-progress-bar').classList.remove('indeterminate');
+          const errors = multiRows.filter(r => r.status === 'error').length;
+          const total = multiRows.length;
+          document.getElementById('multiSummary').innerHTML =
+            '<div class="multi-stat"><strong>' + total + '</strong>total</div>' +
+            '<div class="multi-stat"><strong style="color:#4caf50">' + (total-errors) + '</strong>ok</div>' +
+            (errors ? '<div class="multi-stat"><strong style="color:#f44336">' + errors + '</strong>errors</div>' : '');
+          retryBtn.disabled = false;
+          retryBtn.textContent = '↺ retry failed';
+          retryBtn.style.display = errors ? 'inline-block' : 'none';
+        }
+
+        if (d.status === 'error') {
+          clearInterval(retryPoll);
+          document.getElementById('multiProgress').classList.remove('show');
+          retryBtn.disabled = false;
+          retryBtn.textContent = '↺ retry failed';
+        }
+
+      } catch(e) { console.warn('Retry poll error:', e.message); }
+    }, 2000);
   };
 
 }); // DOMContentLoaded

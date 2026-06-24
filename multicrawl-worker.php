@@ -9,16 +9,24 @@ if (php_sapi_name() !== 'cli') {
 set_time_limit(0);
 
 $jobId = $argv[1] ?? null;
-$url   = $argv[2] ?? null;
+$arg2  = $argv[2] ?? null;
 
-if (!$jobId || !$url) {
-    exit('Usage: php multicrawl-worker.php JOB_ID URL' . PHP_EOL);
+if (!$jobId || !$arg2) {
+    exit('Usage: php multicrawl-worker.php JOB_ID URL_OR_JSON' . PHP_EOL);
 }
 
 $jobDir  = '/tmp/metatag-jobs';
 $jobFile = "$jobDir/$jobId.json";
 
 if (!is_dir($jobDir)) mkdir($jobDir, 0700, true);
+
+// Determine if arg2 is a JSON URL list or a domain URL
+$preloadedUrls = null;
+if (str_starts_with(trim($arg2), '[')) {
+    $preloadedUrls = json_decode($arg2, true);
+    if (!is_array($preloadedUrls)) $preloadedUrls = null;
+}
+$url = $preloadedUrls === null ? $arg2 : null;
 
 // ── Job state helpers ─────────────────────────────────────────────────────────
 
@@ -63,24 +71,28 @@ $delayMs   = (int)($config['multicrawl_delay_ms'] ?? 200);
 
 // ── Step 1: Collect URLs ──────────────────────────────────────────────────────
 
-try {
-    $urls = $extractor->getUrls($url);
-} catch (Throwable $e) {
-    writeJob($jobFile, [
-        'status'  => 'error',
-        'message' => 'URL collection failed: ' . $e->getMessage(),
-        'updated' => time(),
-    ]);
-    exit;
-}
+if ($preloadedUrls !== null) {
+    $urls = $preloadedUrls;
+} else {
+    try {
+        $urls = $extractor->getUrls($url);
+    } catch (Throwable $e) {
+        writeJob($jobFile, [
+            'status'  => 'error',
+            'message' => 'URL collection failed: ' . $e->getMessage(),
+            'updated' => time(),
+        ]);
+        exit;
+    }
 
-if (empty($urls)) {
-    writeJob($jobFile, [
-        'status'  => 'error',
-        'message' => 'No URLs found for this domain',
-        'updated' => time(),
-    ]);
-    exit;
+    if (empty($urls)) {
+        writeJob($jobFile, [
+            'status'  => 'error',
+            'message' => 'No URLs found for this domain',
+            'updated' => time(),
+        ]);
+        exit;
+    }
 }
 
 $total  = count($urls);
